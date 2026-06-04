@@ -6,18 +6,20 @@ import {usePuterStore} from "~/lib/puter";
 import {convertPdfToImage} from "~/lib/pdf2image";
 import {generateUUID} from "~/utils/formatSize";
 import {prepareInstructions} from "../../constants";
+import {useNavigate} from "react-router";
 
 const Upload = () => {
     const {auth, fs, kv, ai, isLoading} = usePuterStore();
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusText, setStatusText] = useState<string>('');
     const [file, setFile] = useState<File | null>(null)
+    const navigate = useNavigate();
 
     const handleAnalyze = async ({companyName, jobTitle, jobDescription, file}: {
-        companyName: string,
-        jobTitle: string,
-        jobDescription: string,
-        file: File[]
+        companyName: string | null,
+        jobTitle: string | null,
+        jobDescription: string | null,
+        file: File[] | null
     }) => {
         setIsProcessing(true);
         setStatusText("Uploading The File.....")
@@ -35,7 +37,7 @@ const Upload = () => {
         if (!imageFile.file) return setStatusText("Error: Failed to convert image");
 
         setStatusText("Uploading the image...")
-        const uploadImage = await fs.upload([imageFile.file]);
+        const [uploadImage] = await Promise.all([fs.upload([imageFile.file])]);
         if (!uploadImage) return setStatusText("Error: Failed to upload the image");
 
         setStatusText("Prepairing the image...");
@@ -49,13 +51,18 @@ const Upload = () => {
             companyName,
             jobTitle,
             jobDescription,
+            feedback: undefined
         }
 
         await kv.set(`resume: ${uuid}`, JSON.stringify(data));
 
+
         const feedback = await ai.feedback(
             uploadFile.path,
-            prepareInstructions(jobTitle, jobDescription)
+            prepareInstructions({
+                jobTitle: jobTitle ?? '',
+                jobDescription: jobDescription ?? ''
+            })
         )
 
         if (!feedback) return setStatusText("Error: Failed to anylyze the form");
@@ -66,11 +73,11 @@ const Upload = () => {
         await kv.set(`resume: ${uuid}`, JSON.stringify(data));
 
         setStatusText("Anylysis Complete, redirecting...");
-        console.log(data)
+        navigate(`/resume/${uuid}`)
     }
 
 
-    const handleSubmit = async(e: React.SubmitEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
         const form = e.currentTarget.closest("form");
         if (!form) return;
@@ -85,7 +92,8 @@ const Upload = () => {
 
         if (!file) return;
 
-         await handleAnalyze({companyName, jobTitle, jobDescription, file})
+        // @ts-ignore
+        await handleAnalyze({companyName, jobTitle, jobDescription, file})
     }
 
     const handleFileSelect = (file: File | null) => {
@@ -105,7 +113,7 @@ const Upload = () => {
                     {isProcessing ? (
                         <>
                             <h2>{statusText}</h2>
-                            <img src="/images/resume-scan.gif" className="w-full"/>
+                            <img src="/images/resume-scan.gif" className="w-full" alt=""/>
                         </>
                     ) : (
                         <h2>Drop Your Resume for an ATS Score And Improvement</h2>

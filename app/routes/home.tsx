@@ -2,7 +2,7 @@ import Navbar from "~/componenets/Navbar";
 import {resumes} from "../../constants";
 import ResumeCard from "~/componenets/ResumeCard";
 import {usePuterStore} from "~/lib/puter";
-import {useLocation, useNavigate} from "react-router";
+import {Route, useLocation, useNavigate} from "react-router";
 import {useEffect} from "react";
 
 export function meta({}: Route.MetaArgs) {
